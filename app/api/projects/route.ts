@@ -7,13 +7,13 @@ import { UserDatabase } from '@/lib/database';
 export async function GET(request: Request) {
   try {
     const session = await getServerSession();
-    
+
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Get user ID from database
-    const user = await UserDatabase.getUserByGoogleId(session.user.email);
+    const user = await UserDatabase.getUserByEmail(session.user.email);
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -50,13 +50,13 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const session = await getServerSession();
-    
+
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Get user ID from database
-    const user = await UserDatabase.getUserByGoogleId(session.user.email);
+    const user = await UserDatabase.getUserByEmail(session.user.email);
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
