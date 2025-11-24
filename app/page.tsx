@@ -130,130 +130,6 @@ function HomePage() {
             <button className="text-white/80 hover:text-white transition-colors text-sm font-medium">
               Community
             </button>
-          </nav>
-
-          <UserButton />
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="relative z-10 flex flex-col items-center justify-center px-6 pt-12 pb-32">
-        <div className="max-w-4xl w-full text-center mb-12 animate-fade-in-up">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-          >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-dark mb-6">
-              <span className="px-2 py-0.5 rounded-full bg-blue-500 text-white text-xs font-semibold">New</span>
-              <span className="text-white/90 text-sm">Themes & Visual edits</span>
-              <ArrowRight className="w-4 h-4 text-white/70" />
-            </div>
-
-            <h1 className="text-5xl sm:text-6xl md:text-7xl font-bold text-white mb-6 leading-tight">
-              Build something{' '}
-              <span className="inline-flex items-center">
-                <span className="text-orange-400">🧡</span>{' '}
-                Lovable
-              </span>
-            </h1>
-
-            <p className="text-xl text-white/80 mb-12">
-              Create apps and websites by chatting with AI
-            </p>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="w-full"
-          >
-            <form onSubmit={handleSubmit}>
-              <div className="relative w-full max-w-3xl mx-auto">
-                <div className="glass-dark rounded-2xl p-6 shadow-2xl">
-                  <textarea
-                    value={promptInput}
-                    onChange={(e) => setPromptInput(e.target.value)}
-                    placeholder="Ask Lovable to create a blog about..."
-                    className="w-full bg-transparent text-white placeholder-white/40 border-none outline-none resize-none text-lg min-h-[60px]"
-                    rows={2}
-                    disabled={submitting}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSubmit(e);
-                      }
-                    }}
-                  />
-
-                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/10">
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors text-white/70 text-sm"
-                      >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                        </svg>
-                        Attach
-                      </button>
-
-                      <button
-                        type="button"
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors text-white/70 text-sm"
-                      >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-                        </svg>
-                        Theme
-                      </button>
-
-                      <button
-                        type="button"
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-600/20 text-green-400 text-sm border border-green-500/30"
-                      >
-                        <Sparkles className="w-4 h-4" />
-                        Supabase
-                      </button>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        className="p-2 rounded-lg hover:bg-white/10 transition-colors text-white/70"
-                      >
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                        </svg>
-                      </button>
-
-                      <button
-                        type="submit"
-                        className="p-2.5 rounded-lg bg-white/20 hover:bg-white/30 transition-colors text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={!promptInput.trim() || submitting}
-                      >
-                        {submitting ? (
-                          <Loader2 className="w-5 h-5 animate-spin" />
-                        ) : (
-                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                          </svg>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </form>
-          </motion.div>
-        </div>
-      </main>
-
-      {/* Projects Section */}
-      {session && (
-        <section className="relative z-10 w-full px-6 pb-12">
-          <div className="max-w-7xl mx-auto">
             <div className="glass-dark rounded-2xl p-6 shadow-2xl">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-semibold text-white flex items-center gap-3">
@@ -300,8 +176,8 @@ function HomePage() {
                 </div>
               )}
             </div>
-          </div>
-        </section>
+        </div>
+      </section>
       )}
     </div>
   );

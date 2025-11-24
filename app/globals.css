@@ -228,48 +228,61 @@
     background-image: conic-gradient(var(--tw-gradient-stops));
   }
 
-  /* Lovable gradient background */
+  /* Lovable exact background */
   .lovable-gradient {
-    background: linear-gradient(135deg, 
-      rgb(30, 58, 138) 0%,
-      rgb(67, 56, 202) 25%,
-      rgb(139, 92, 246) 50%,
-      rgb(249, 115, 22) 75%,
-      rgb(251, 146, 60) 100%
-    );
-    background-size: 400% 400%;
-    animation: gradient-shift 15s ease infinite;
+    background-color: #050505;
+    background-image: 
+      radial-gradient(circle at 50% 0%, rgba(88, 28, 135, 0.15) 0%, transparent 50%),
+      radial-gradient(circle at 80% 10%, rgba(234, 88, 12, 0.15) 0%, transparent 40%),
+      radial-gradient(circle at 20% 10%, rgba(59, 130, 246, 0.15) 0%, transparent 40%);
+    position: relative;
   }
 
-  /* Gradient blur effects */
+  .lovable-gradient::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Gradient blur effects - refined */
   .gradient-blur-blue {
-    background: radial-gradient(circle at center, rgba(59, 130, 246, 0.3) 0%, transparent 70%);
-    filter: blur(40px);
+    background: radial-gradient(circle at center, rgba(59, 130, 246, 0.4) 0%, transparent 70%);
+    filter: blur(60px);
+    opacity: 0.6;
   }
 
   .gradient-blur-purple {
-    background: radial-gradient(circle at center, rgba(168, 85, 247, 0.3) 0%, transparent 70%);
-    filter: blur(40px);
+    background: radial-gradient(circle at center, rgba(147, 51, 234, 0.4) 0%, transparent 70%);
+    filter: blur(60px);
+    opacity: 0.6;
   }
 
   .gradient-blur-orange {
-    background: radial-gradient(circle at center, rgba(249, 115, 22, 0.3) 0%, transparent 70%);
-    filter: blur(40px);
+    background: radial-gradient(circle at center, rgba(249, 115, 22, 0.4) 0%, transparent 70%);
+    filter: blur(60px);
+    opacity: 0.6;
   }
 
-  /* Glassmorphism effect */
+  /* Glassmorphism effect - darker and smoother */
   .glass {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.03);
     backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.05);
   }
 
   .glass-dark {
-    background: rgba(0, 0, 0, 0.4);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: #1A1A1A;
+    border: 1px solid rgba(255, 255, 255, 0.08);
   }
-}
+  
+  .glass-input {
+    background: #1A1A1A;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  }
 
 @layer base {
   * {
