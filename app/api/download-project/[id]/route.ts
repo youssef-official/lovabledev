@@ -6,7 +6,7 @@ import JSZip from 'jszip';
 // GET /api/download-project/[id] - Download project as ZIP
 export async function GET(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const session = await getServerSession();
@@ -15,7 +15,8 @@ export async function GET(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const projectId = parseInt(params.id);
+        const { id } = await params;
+        const projectId = parseInt(id);
         const project = await ProjectDatabase.getProjectById(projectId);
 
         if (!project) {
