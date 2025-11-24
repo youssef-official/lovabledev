@@ -34,7 +34,7 @@ export class ProjectDatabase {
             const result = await client.query(query, [
                 data.userId,
                 data.name,
-                data.description || null,
+                data.description === undefined ? null : data.description,
                 data.prompt
             ]);
 
