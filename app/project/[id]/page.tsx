@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Download, Loader2, ArrowLeft } from 'lucide-react';
-import Link from 'link';
+import Link from 'next/link';
 import { FileTree } from '@/components/FileTree';
 import { CodeEditor } from '@/components/CodeEditor';
 import { ThinkingDisplay } from '@/components/ThinkingDisplay';
