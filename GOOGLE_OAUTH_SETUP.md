@@ -3,7 +3,7 @@
 This guide explains how to set up Google OAuth authentication for Open Lovable DIY.
 
 ## Prerequisites
-
+ 
 1. Google Cloud Console project
 2. Domain configured (https://www.openlovable.diy)
 
