@@ -1,46 +1,102 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { UserButton } from '@/components/UserButton';
-import { Sparkles, ArrowRight, Search, Grid2X2, Clock } from 'lucide-react';
+import { Sparkles, ArrowRight, Search, Grid2X2, Clock, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 
 function HomePage() {
   const { data: session } = useSession();
+  const router = useRouter();
   const [promptInput, setPromptInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [projects, setProjects] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [projectsLoading, setProjectsLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Fetch user projects
+  useEffect(() => {
+    if (!session) {
+      setProjectsLoading(false);
+      return;
+    }
+
+    async function fetchProjects() {
+      try {
+        const res = await fetch('/api/projects?limit=6&sortBy=updated_at&sortOrder=DESC');
+        if (res.ok) {
+          const data = await res.json();
+          setProjects(data.projects || []);
+        }
+      } catch (error) {
+        console.error('Error fetching projects:', error);
+      } finally {
+        setProjectsLoading(false);
+      }
+    }
+
+    fetchProjects();
+  }, [session]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!promptInput.trim()) return;
+    if (!promptInput.trim() || submitting) return;
 
-    // Navigate to generation page or handle prompt
-    console.log('Submitted:', promptInput);
+    if (!session) {
+      // Redirect to sign in
+      alert('Please sign in to create a project');
+      return;
+    }
+
+    setSubmitting(true);
+    setLoading(true);
+
+    try {
+      // Create project
+      const res = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: `Generated from: "${promptInput.substring(0, 30)}..."`,
+          description: promptInput,
+          prompt: promptInput
+        })
+      });
+
+      if (!res.ok) throw new Error('Failed to create project');
+
+      const project = await res.json();
+
+      // Redirect to generation page
+      router.push(`/project/${project.id}`);
+    } catch (error) {
+      console.error('Error creating project:', error);
+      alert('Failed to create project. Please try again.');
+      setSubmitting(false);
+      setLoading(false);
+    }
   };
 
-  // Mock projects data - replace with real data from your backend
-  const recentProjects = [
-    {
-      id: 1,
-      name: 'pharaoh-health-chat',
-      lastEdited: '2 hours ago',
-      preview: 'Health chat application'
-    },
-    {
-      id: 2,
-      name: 'ecommerce-dashboard',
-      lastEdited: '1 day ago',
-      preview: 'Admin dashboard for e-commerce'
-    },
-    {
-      id: 3,
-      name: 'portfolio-website',
-      lastEdited: '3 days ago',
-      preview: 'Personal portfolio site'
-    }
-  ];
+  const formatTimeAgo = (date: string) => {
+    const now = new Date();
+    const past = new Date(date);
+    const seconds = Math.floor((now.getTime() - past.getTime()) / 1000);
+
+    if (seconds < 60) return 'just now';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 7) return `${days}d ago`;
+    const weeks = Math.floor(days / 7);
+    if (weeks < 4) return `${weeks}w ago`;
+    return past.toLocaleDateString();
+  };
 
   return (
     <div className="min-h-screen w-full overflow-hidden lovable-gradient relative">
@@ -54,7 +110,6 @@ function HomePage() {
       {/* Header */}
       <header className="relative z-10 w-full px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-pink-600 flex items-center justify-center">
               <span className="text-white font-bold text-lg">🧡</span>
@@ -62,7 +117,6 @@ function HomePage() {
             <span className="text-white font-semibold text-xl hidden sm:inline">Lovable</span>
           </Link>
 
-          {/* Navigation */}
           <nav className="hidden md:flex items-center gap-6">
             <button className="text-white/80 hover:text-white transition-colors text-sm font-medium">
               Solutions
@@ -78,28 +132,24 @@ function HomePage() {
             </button>
           </nav>
 
-          {/* User Button */}
           <UserButton />
         </div>
       </header>
 
       {/* Main Content */}
       <main className="relative z-10 flex flex-col items-center justify-center px-6 pt-12 pb-32">
-        {/* Hero Section */}
         <div className="max-w-4xl w-full text-center mb-12 animate-fade-in-up">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            {/* Badge */}
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-dark mb-6">
               <span className="px-2 py-0.5 rounded-full bg-blue-500 text-white text-xs font-semibold">New</span>
               <span className="text-white/90 text-sm">Themes & Visual edits</span>
               <ArrowRight className="w-4 h-4 text-white/70" />
             </div>
 
-            {/* Main Heading */}
             <h1 className="text-5xl sm:text-6xl md:text-7xl font-bold text-white mb-6 leading-tight">
               Build something{' '}
               <span className="inline-flex items-center">
@@ -113,7 +163,6 @@ function HomePage() {
             </p>
           </motion.div>
 
-          {/* Chat Input Box */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -129,6 +178,7 @@ function HomePage() {
                     placeholder="Ask Lovable to create a blog about..."
                     className="w-full bg-transparent text-white placeholder-white/40 border-none outline-none resize-none text-lg min-h-[60px]"
                     rows={2}
+                    disabled={submitting}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
@@ -180,12 +230,16 @@ function HomePage() {
 
                       <button
                         type="submit"
-                        className="p-2.5 rounded-lg bg-white/20 hover:bg-white/30 transition-colors text-white"
-                        disabled={!promptInput.trim()}
+                        className="p-2.5 rounded-lg bg-white/20 hover:bg-white/30 transition-colors text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={!promptInput.trim() || submitting}
                       >
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                        </svg>
+                        {submitting ? (
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : (
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                          </svg>
+                        )}
                       </button>
                     </div>
                   </div>
@@ -197,93 +251,58 @@ function HomePage() {
       </main>
 
       {/* Projects Section */}
-      <section className="relative z-10 w-full px-6 pb-12">
-        <div className="max-w-7xl mx-auto">
-          <div className="glass-dark rounded-2xl p-6 shadow-2xl">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-semibold text-white flex items-center gap-3">
-                {session?.user?.name ? `${session.user.name.split(' ')[0]}'s Lovable` : "Your Projects"}
-              </h2>
-              <button className="text-white/80 hover:text-white transition-colors flex items-center gap-2 text-sm">
-                View all
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Filters */}
-            <div className="flex flex-col sm:flex-row gap-4 mb-6">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search projects..."
-                  className="w-full bg-white/5 text-white placeholder-white/40 border border-white/10 rounded-lg pl-10 pr-4 py-2 outline-none focus:border-white/30 transition-colors"
-                />
+      {session && (
+        <section className="relative z-10 w-full px-6 pb-12">
+          <div className="max-w-7xl mx-auto">
+            <div className="glass-dark rounded-2xl p-6 shadow-2xl">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-semibold text-white flex items-center gap-3">
+                  {session.user?.name ? `${session.user.name.split(' ')[0]}'s Lovable` : "Your Projects"}
+                </h2>
               </div>
 
-              <div className="flex gap-2">
-                <select className="bg-white/5 text-white border border-white/10 rounded-lg px-4 py-2 outline-none focus:border-white/30 transition-colors">
-                  <option value="last-edited">Last edited</option>
-                  <option value="name">Name</option>
-                  <option value="created">Created</option>
-                </select>
-
-                <select className="bg-white/5 text-white border border-white/10 rounded-lg px-4 py-2 outline-none focus:border-white/30 transition-colors">
-                  <option value="all">All creators</option>
-                  <option value="me">My projects</option>
-                  <option value="shared">Shared with me</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Projects Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {recentProjects.map((project) => (
-                <Link
-                  key={project.id}
-                  href={`/project/${project.id}`}
-                  className="group relative bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-lg p-4 transition-all duration-300 cursor-pointer"
-                >
-                  {/* Project Preview */}
-                  <div className="w-full aspect-video bg-gray-800/50 rounded-lg mb-3 flex items-center justify-center overflow-hidden">
-                    <Grid2X2 className="w-12 h-12 text-white/20" />
-                  </div>
-
-                  {/* Project Info */}
-                  <h3 className="text-white font-medium mb-1 truncate">
-                    {project.name}
-                  </h3>
-                  <p className="text-white/60 text-sm mb-2 truncate">
-                    {project.preview}
-                  </p>
-
-                  <div className="flex items-center gap-2 text-white/40 text-xs">
-                    <Clock className="w-3 h-3" />
-                    {project.lastEdited}
-                  </div>
-
-                  {/* Hover Effect */}
-                  <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-orange-500/0 to-pink-600/0 group-hover:from-orange-500/10 group-hover:to-pink-600/10 transition-all duration-300 pointer-events-none" />
-                </Link>
-              ))}
-
-              {/* Create New Project Card */}
-              <button className="group relative bg-white/5 hover:bg-white/10 border border-dashed border-white/20 hover:border-white/40 rounded-lg p-4 transition-all duration-300 cursor-pointer flex flex-col items-center justify-center min-h-[200px]">
-                <div className="w-12 h-12 rounded-full bg-white/10 group-hover:bg-white/20 flex items-center justify-center mb-3 transition-colors">
-                  <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
+              {projectsLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
                 </div>
-                <span className="text-white/80 font-medium">New Project</span>
-                <span className="text-white/40 text-sm mt-1">Start from scratch</span>
-              </button>
+              ) : projects.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-white/60 mb-4">No projects yet</p>
+                  <p className="text-white/40 text-sm">Start by creating your first project above!</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {projects.map((project) => (
+                    <Link
+                      key={project.id}
+                      href={`/project/${project.id}`}
+                      className="group relative bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-lg p-4 transition-all duration-300 cursor-pointer"
+                    >
+                      <div className="w-full aspect-video bg-gray-800/50 rounded-lg mb-3 flex items-center justify-center overflow-hidden">
+                        <Grid2X2 className="w-12 h-12 text-white/20" />
+                      </div>
+
+                      <h3 className="text-white font-medium mb-1 truncate">
+                        {project.name}
+                      </h3>
+                      <p className="text-white/60 text-sm mb-2 line-clamp-2">
+                        {project.description || 'No description'}
+                      </p>
+
+                      <div className="flex items-center gap-2 text-white/40 text-xs">
+                        <Clock className="w-3 h-3" />
+                        {formatTimeAgo(project.updated_at)}
+                      </div>
+
+                      <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-orange-500/0 to-pink-600/0 group-hover:from-orange-500/10 group-hover:to-pink-600/10 transition-all duration-300 pointer-events-none" />
+                    </Link>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
     </div>
   );
 }

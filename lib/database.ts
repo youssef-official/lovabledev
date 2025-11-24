@@ -53,14 +53,14 @@ export class UserDatabase {
           login_count = users.login_count + 1
         RETURNING *;
       `;
-      
+
       const result = await client.query(query, [
         userData.google_id,
         userData.email,
         userData.name || null,
         userData.image || null
       ]);
-      
+
       return result.rows[0];
     } finally {
       client.release();
@@ -86,7 +86,7 @@ export class UserDatabase {
         LIMIT $1 OFFSET $2
       `;
       const usersResult = await client.query(usersQuery, [limit, offset]);
-      
+
       return {
         users: usersResult.rows,
         total
@@ -127,7 +127,7 @@ export class UserDatabase {
       `;
       const result = await client.query(query);
       const row = result.rows[0];
-      
+
       return {
         totalUsers: parseInt(row.total_users),
         newUsersToday: parseInt(row.new_today),
@@ -162,6 +162,10 @@ export class UserDatabase {
 
 // Export the pool for direct queries if needed
 export { pool };
+
+// Export database classes
+export { ProjectDatabase } from './db/projects';
+export { GenerationDatabase } from './db/generations';
 
 // Graceful shutdown
 process.on('SIGINT', () => {
