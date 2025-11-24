@@ -5,14 +5,14 @@ import { UserDatabase } from '@/lib/database';
 
 // Admin emails
 const ADMIN_EMAILS = [
-  'zainulabedeen0002@gmail.com',
+  'youssef.official.2411@gmail.com',
 ];
 
 export async function GET(request: NextRequest) {
   try {
     // Check if user is authenticated and admin
     const session = await getServerSession(authOptions);
-    
+
     if (!session || !session.user?.email || !ADMIN_EMAILS.includes(session.user.email)) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error checking admin status:', error);
     return NextResponse.json(
-      { 
+      {
         error: 'Internal server error',
         details: error instanceof Error ? error.message : 'Unknown error'
       },

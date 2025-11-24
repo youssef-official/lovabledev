@@ -5,7 +5,7 @@ import { UserDatabase } from '@/lib/database';
 
 // Admin emails - you can add more admin emails here
 const ADMIN_EMAILS = [
-  'zainulabedeen0002@gmail.com', // Your email
+  'youssef.official.2411@gmail.com', // Your email
   // Add more admin emails as needed
 ];
 
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
   try {
     // Check if user is authenticated and admin
     const session = await getServerSession(authOptions);
-    
+
     if (!session || !session.user?.email || !ADMIN_EMAILS.includes(session.user.email)) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
     }
 
     const isConnected = await UserDatabase.testConnection();
-    
+
     return NextResponse.json({
       connected: isConnected,
       message: isConnected ? 'Database connection successful' : 'Database connection failed'
