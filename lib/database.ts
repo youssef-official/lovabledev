@@ -108,6 +108,18 @@ export class UserDatabase {
     }
   }
 
+  // Get user by Email
+  static async getUserByEmail(email: string): Promise<User | null> {
+    const client = await pool.connect();
+    try {
+      const query = 'SELECT * FROM users WHERE email = $1';
+      const result = await client.query(query, [email]);
+      return result.rows[0] || null;
+    } finally {
+      client.release();
+    }
+  }
+
   // Get user statistics for admin dashboard
   static async getUserStats(): Promise<{
     totalUsers: number;
