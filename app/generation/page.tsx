@@ -112,8 +112,7 @@ const GenerationPage = () => {
           <div className="flex-1">
             <CodeEditor
               code={code}
-              onCodeChange={setCode}
-              fileName="index.html"
+              filename="index.html"
               language="html"
             />
           </div>
