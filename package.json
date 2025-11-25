@@ -26,13 +26,13 @@
   "private": false,
   "type": "module",
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "node -r dotenv/config ./node_modules/.bin/next dev --turbopack",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test:integration": "node tests/e2b-integration.test.js",
-    "test:api": "node tests/api-endpoints.test.js",
-    "test:code": "node tests/code-execution.test.js",
+    "test:integration": "node test/e2b-integration.test.js",
+    "test:api": "node test/api-endpoints.test.js",
+    "test:code": "node test/code-execution.test.js",
     "test:all": "npm run test:integration && npm run test:api && npm run test:code"
   },
   "dependencies": {
@@ -52,7 +52,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cors": "^2.8.5",
-    "dotenv": "^17.2.1",
+    "dotenv": "^17.2.3",
     "e2b": "^1.13.2",
     "framer-motion": "^12.23.12",
     "groq-sdk": "^0.29.0",

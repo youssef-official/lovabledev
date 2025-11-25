@@ -27,6 +27,8 @@ CREATE TABLE projects (
   name VARCHAR(255) NOT NULL,
   description TEXT,
   prompt TEXT NOT NULL,
+  code TEXT,
+  model VARCHAR(100),
   status VARCHAR(50) DEFAULT 'active', -- active, archived, deleted
   sandbox_id VARCHAR(255), -- E2B sandbox ID
   sandbox_url TEXT, -- E2B sandbox URL
