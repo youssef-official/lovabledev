@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { CodeEditor } from '@/components/CodeEditor';
 import { E2BPreview } from '@/components/E2BPreview';
-import { ModelSelector } from '@/components/ModelSelector';
+import { Select } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -72,7 +72,10 @@ const GenerationPage = () => {
             </Alert>
           )}
           <div className="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-4">
-            <ModelSelector value={model} onChange={setModel} />
+            <Select value={model} onChange={(e) => setModel(e.target.value)}>
+              <option value="claude-3-opus-20240229">Claude 3 Opus</option>
+              <option value="gpt-4">GPT-4</option>
+            </Select>
             <Input
               type="text"
               placeholder="Enter a prompt..."
