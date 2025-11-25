@@ -119,7 +119,7 @@ const GenerationPage = () => {
         </div>
       </div>
       <div className="flex-1 md:w-1/2">
-        <E2BPreview url={sandboxUrl} />
+        <E2BPreview sandboxUrl={sandboxUrl} projectId="new-generation" />
       </div>
     </div>
   );
