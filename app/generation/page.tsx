@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import CodeEditor from '@/components/CodeEditor';
-import E2BPreview from '@/components/E2BPreview';
-import ModelSelector from '@/components/ModelSelector';
+import { CodeEditor } from '@/components/CodeEditor';
+import { E2BPreview } from '@/components/E2BPreview';
+import { ModelSelector } from '@/components/ModelSelector';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
