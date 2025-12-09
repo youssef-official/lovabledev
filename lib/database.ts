@@ -6,7 +6,7 @@ import { Pool } from 'pg';
   }
 
   // Add statement_timeout to connection string for better error handling
-  const connectionString = process.env.DATABASE_URL + '?statement_timeout=30000';
+  const connectionString = process.env.DATABASE_URL + '?statement_timeout=60000';
 
   // Create a connection pool for better performance
   const pool = new Pool({
