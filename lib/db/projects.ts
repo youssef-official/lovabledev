@@ -1,4 +1,4 @@
-import { pool } from '../database';
+import { supabase } from '../database';
 
 export interface Project {
     id: number;
@@ -27,50 +27,52 @@ export class ProjectDatabase {
         code: string;
         model: string;
     }): Promise<Project> {
-        const client = await pool.connect();
-        try {
-            const query = `
-        INSERT INTO projects (user_id, name, description, prompt, code, model, status, created_at, updated_at, last_viewed_at)
-        VALUES ($1, $2, $3, $4, $5, $6, 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-        RETURNING *;
-      `;
+        const { data: project, error } = await supabase
+            .from('projects')
+            .insert({
+                user_id: data.userId,
+                name: data.name,
+                description: data.description || null,
+                prompt: data.prompt,
+                code: data.code,
+                model: data.model,
+                status: 'active',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                last_viewed_at: new Date().toISOString()
+            })
+            .select()
+            .single();
 
-            const result = await client.query(query, [
-                data.userId,
-                data.name,
-                data.description === undefined ? null : data.description,
-                data.prompt,
-                data.code,
-                data.model
-            ]);
-
-            return result.rows[0];
-        } finally {
-            client.release();
+        if (error) {
+            console.error('Error creating project:', error);
+            throw new Error(error.message);
         }
+        return project as Project;
     }
 
     // Get project by ID
     static async getProjectById(projectId: number): Promise<Project | null> {
-        const client = await pool.connect();
-        try {
-            const query = 'SELECT * FROM projects WHERE id = $1';
-            const result = await client.query(query, [projectId]);
+        const { data: project, error } = await supabase
+            .from('projects')
+            .select('*')
+            .eq('id', projectId)
+            .single();
 
-            if (result.rows.length === 0) {
-                return null;
-            }
-
-            // Update last_viewed_at
-            await client.query(
-                'UPDATE projects SET last_viewed_at = CURRENT_TIMESTAMP WHERE id = $1',
-                [projectId]
-            );
-
-            return result.rows[0];
-        } finally {
-            client.release();
+        if (error || !project) {
+            return null;
         }
+
+        // Update last_viewed_at (fire and forget)
+        supabase
+            .from('projects')
+            .update({ last_viewed_at: new Date().toISOString() })
+            .eq('id', projectId)
+            .then(({ error }) => {
+                if (error) console.error('Error updating last_viewed_at:', error);
+            });
+
+        return project as Project;
     }
 
     // Get all projects for a user
@@ -85,54 +87,39 @@ export class ProjectDatabase {
             sortOrder?: 'ASC' | 'DESC';
         }
     ): Promise<{ projects: Project[]; total: number }> {
-        const client = await pool.connect();
-        try {
-            const limit = filters?.limit || 50;
-            const offset = filters?.offset || 0;
-            const sortBy = filters?.sortBy || 'updated_at';
-            const sortOrder = filters?.sortOrder || 'DESC';
+        const limit = filters?.limit || 50;
+        const offset = filters?.offset || 0;
+        const sortBy = filters?.sortBy || 'updated_at';
+        const sortOrder = filters?.sortOrder || 'DESC';
 
-            let whereConditions = ['user_id = $1'];
-            const queryParams: any[] = [userId];
-            let paramIndex = 2;
+        let query = supabase
+            .from('projects')
+            .select('*', { count: 'exact' })
+            .eq('user_id', userId);
 
-            if (filters?.status) {
-                whereConditions.push(`status = $${paramIndex}`);
-                queryParams.push(filters.status);
-                paramIndex++;
-            }
-
-            if (filters?.search) {
-                whereConditions.push(`(name ILIKE $${paramIndex} OR description ILIKE $${paramIndex})`);
-                queryParams.push(`%${filters.search}%`);
-                paramIndex++;
-            }
-
-            const whereClause = whereConditions.join(' AND ');
-
-            // Get total count
-            const countQuery = `SELECT COUNT(*) as total FROM projects WHERE ${whereClause}`;
-            const countResult = await client.query(countQuery, queryParams);
-            const total = parseInt(countResult.rows[0].total);
-
-            // Get projects
-            const projectsQuery = `
-        SELECT * FROM projects 
-        WHERE ${whereClause}
-        ORDER BY ${sortBy} ${sortOrder}
-        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
-      `;
-            queryParams.push(limit, offset);
-
-            const projectsResult = await client.query(projectsQuery, queryParams);
-
-            return {
-                projects: projectsResult.rows,
-                total
-            };
-        } finally {
-            client.release();
+        if (filters?.status) {
+            query = query.eq('status', filters.status);
         }
+
+        if (filters?.search) {
+            query = query.or(`name.ilike.%${filters.search}%,description.ilike.%${filters.search}%`);
+        }
+
+        query = query
+            .order(sortBy, { ascending: sortOrder === 'ASC' })
+            .range(offset, offset + limit - 1);
+
+        const { data: projects, count, error } = await query;
+
+        if (error) {
+            console.error('Error getting user projects:', error);
+            throw new Error(error.message);
+        }
+
+        return {
+            projects: projects as Project[],
+            total: count || 0
+        };
     }
 
     // Update project
@@ -147,79 +134,44 @@ export class ProjectDatabase {
             preview_image?: string;
         }
     ): Promise<Project | null> {
-        const client = await pool.connect();
-        try {
-            const updates: string[] = [];
-            const values: any[] = [];
-            let paramIndex = 1;
+        const updates: any = {};
 
-            if (data.name !== undefined) {
-                updates.push(`name = $${paramIndex}`);
-                values.push(data.name);
-                paramIndex++;
-            }
+        if (data.name !== undefined) updates.name = data.name;
+        if (data.description !== undefined) updates.description = data.description;
+        if (data.status !== undefined) updates.status = data.status;
+        if (data.sandbox_id !== undefined) updates.sandbox_id = data.sandbox_id;
+        if (data.sandbox_url !== undefined) updates.sandbox_url = data.sandbox_url;
+        if (data.preview_image !== undefined) updates.preview_image = data.preview_image;
 
-            if (data.description !== undefined) {
-                updates.push(`description = $${paramIndex}`);
-                values.push(data.description);
-                paramIndex++;
-            }
-
-            if (data.status !== undefined) {
-                updates.push(`status = $${paramIndex}`);
-                values.push(data.status);
-                paramIndex++;
-            }
-
-            if (data.sandbox_id !== undefined) {
-                updates.push(`sandbox_id = $${paramIndex}`);
-                values.push(data.sandbox_id);
-                paramIndex++;
-            }
-
-            if (data.sandbox_url !== undefined) {
-                updates.push(`sandbox_url = $${paramIndex}`);
-                values.push(data.sandbox_url);
-                paramIndex++;
-            }
-
-            if (data.preview_image !== undefined) {
-                updates.push(`preview_image = $${paramIndex}`);
-                values.push(data.preview_image);
-                paramIndex++;
-            }
-
-            if (updates.length === 0) {
-                return await this.getProjectById(projectId);
-            }
-
-            updates.push(`updated_at = CURRENT_TIMESTAMP`);
-            values.push(projectId);
-
-            const query = `
-        UPDATE projects 
-        SET ${updates.join(', ')}
-        WHERE id = $${paramIndex}
-        RETURNING *;
-      `;
-
-            const result = await client.query(query, values);
-            return result.rows[0] || null;
-        } finally {
-            client.release();
+        if (Object.keys(updates).length === 0) {
+            return await this.getProjectById(projectId);
         }
+
+        updates.updated_at = new Date().toISOString();
+
+        const { data: project, error } = await supabase
+            .from('projects')
+            .update(updates)
+            .eq('id', projectId)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error updating project:', error);
+            return null;
+        }
+
+        return project as Project;
     }
 
     // Delete project
     static async deleteProject(projectId: number): Promise<boolean> {
-        const client = await pool.connect();
-        try {
-            const query = 'DELETE FROM projects WHERE id = $1';
-            const result = await client.query(query, [projectId]);
-            return result.rowCount !== null && result.rowCount > 0;
-        } finally {
-            client.release();
-        }
+        const { error } = await supabase
+            .from('projects')
+            .delete()
+            .eq('id', projectId);
+
+        return !error;
     }
 
     // Get project statistics for a user
@@ -228,26 +180,17 @@ export class ProjectDatabase {
         active: number;
         archived: number;
     }> {
-        const client = await pool.connect();
-        try {
-            const query = `
-        SELECT 
-          COUNT(*) as total,
-          COUNT(CASE WHEN status = 'active' THEN 1 END) as active,
-          COUNT(CASE WHEN status = 'archived' THEN 1 END) as archived
-        FROM projects
-        WHERE user_id = $1
-      `;
-            const result = await client.query(query, [userId]);
-            const row = result.rows[0];
+        // Parallel queries
+        const [totalResult, activeResult, archivedResult] = await Promise.all([
+            supabase.from('projects').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+            supabase.from('projects').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'active'),
+            supabase.from('projects').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'archived')
+        ]);
 
-            return {
-                total: parseInt(row.total),
-                active: parseInt(row.active),
-                archived: parseInt(row.archived)
-            };
-        } finally {
-            client.release();
-        }
+        return {
+            total: totalResult.count || 0,
+            active: activeResult.count || 0,
+            archived: archivedResult.count || 0
+        };
     }
 }

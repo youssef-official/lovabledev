@@ -42,10 +42,13 @@ export async function GET(
         });
 
         // Generate ZIP buffer
-        const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' });
+        const zipContent = await zip.generateAsync({ type: 'uint8array' });
+
+        // Convert to Buffer for NextResponse
+        const buffer = Buffer.from(zipContent);
 
         // Return as downloadable file
-        return new NextResponse(zipBuffer, {
+        return new NextResponse(buffer as unknown as BodyInit, {
             headers: {
                 'Content-Type': 'application/zip',
                 'Content-Disposition': `attachment; filename="${project.name.replace(/[^a-z0-9]/gi, '_')}.zip"`
