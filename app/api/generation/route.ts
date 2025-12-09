@@ -2,11 +2,10 @@ import { NextResponse } from 'next/server';
 import { Sandbox } from '@e2b/sdk';
 import Groq from 'groq-sdk';
 
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-});
-
 export async function POST(request: Request) {
+  const groq = new Groq({
+    apiKey: process.env.GROQ_API_KEY || 'dummy_key',
+  });
   try {
     const body = await request.json();
     const { model, prompt, imageUrl } = body;

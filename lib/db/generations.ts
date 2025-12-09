@@ -1,4 +1,4 @@
-import { pool } from '../database';
+import { supabase } from '../database';
 
 export interface Generation {
     id: number;
@@ -32,25 +32,25 @@ export class GenerationDatabase {
         prompt: string;
         model?: string;
     }): Promise<Generation> {
-        const client = await pool.connect();
-        try {
-            const query = `
-        INSERT INTO generations (project_id, user_id, prompt, model, status, generation_start_time, created_at)
-        VALUES ($1, $2, $3, $4, 'pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-        RETURNING *;
-      `;
+        const { data: generation, error } = await supabase
+            .from('generations')
+            .insert({
+                project_id: data.projectId,
+                user_id: data.userId,
+                prompt: data.prompt,
+                model: data.model || null,
+                status: 'pending',
+                generation_start_time: new Date().toISOString(),
+                created_at: new Date().toISOString()
+            })
+            .select()
+            .single();
 
-            const result = await client.query(query, [
-                data.projectId,
-                data.userId,
-                data.prompt,
-                data.model || null
-            ]);
-
-            return result.rows[0];
-        } finally {
-            client.release();
+        if (error) {
+            console.error('Error creating generation:', error);
+            throw new Error(error.message);
         }
+        return generation as Generation;
     }
 
     // Update generation status
@@ -63,46 +63,36 @@ export class GenerationDatabase {
             errorMessage?: string;
         }
     ): Promise<Generation | null> {
-        const client = await pool.connect();
-        try {
-            const updates: string[] = [`status = $2`];
-            const values: any[] = [generationId, status];
-            let paramIndex = 3;
+        const updateData: any = { status };
 
-            if (data?.thinkingDuration !== undefined) {
-                updates.push(`thinking_duration = $${paramIndex}`);
-                values.push(data.thinkingDuration);
-                paramIndex++;
-            }
-
-            if (data?.totalTokens !== undefined) {
-                updates.push(`total_tokens = $${paramIndex}`);
-                values.push(data.totalTokens);
-                paramIndex++;
-            }
-
-            if (data?.errorMessage !== undefined) {
-                updates.push(`error_message = $${paramIndex}`);
-                values.push(data.errorMessage);
-                paramIndex++;
-            }
-
-            if (status === 'complete' || status === 'failed') {
-                updates.push(`generation_end_time = CURRENT_TIMESTAMP`);
-            }
-
-            const query = `
-        UPDATE generations 
-        SET ${updates.join(', ')}
-        WHERE id = $1
-        RETURNING *;
-      `;
-
-            const result = await client.query(query, values);
-            return result.rows[0] || null;
-        } finally {
-            client.release();
+        if (data?.thinkingDuration !== undefined) {
+            updateData.thinking_duration = data.thinkingDuration;
         }
+
+        if (data?.totalTokens !== undefined) {
+            updateData.total_tokens = data.totalTokens;
+        }
+
+        if (data?.errorMessage !== undefined) {
+            updateData.error_message = data.errorMessage;
+        }
+
+        if (status === 'complete' || status === 'failed') {
+            updateData.generation_end_time = new Date().toISOString();
+        }
+
+        const { data: generation, error } = await supabase
+            .from('generations')
+            .update(updateData)
+            .eq('id', generationId)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error updating generation status:', error);
+            return null;
+        }
+        return generation as Generation;
     }
 
     // Add generated files
@@ -114,43 +104,38 @@ export class GenerationDatabase {
             fileType?: string;
         }>
     ): Promise<GenerationFile[]> {
-        const client = await pool.connect();
-        try {
-            const insertedFiles: GenerationFile[] = [];
+        if (files.length === 0) return [];
 
-            for (const file of files) {
-                const query = `
-          INSERT INTO generation_files (generation_id, file_path, file_content, file_type, created_at)
-          VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
-          RETURNING *;
-        `;
+        const filesData = files.map(file => ({
+            generation_id: generationId,
+            file_path: file.filePath,
+            file_content: file.fileContent,
+            file_type: file.fileType || null,
+            created_at: new Date().toISOString()
+        }));
 
-                const result = await client.query(query, [
-                    generationId,
-                    file.filePath,
-                    file.fileContent,
-                    file.fileType || null
-                ]);
+        const { data, error } = await supabase
+            .from('generation_files')
+            .insert(filesData)
+            .select();
 
-                insertedFiles.push(result.rows[0]);
-            }
-
-            return insertedFiles;
-        } finally {
-            client.release();
+        if (error) {
+            console.error('Error adding generated files:', error);
+            throw new Error(error.message);
         }
+        return data as GenerationFile[];
     }
 
     // Get generation by ID
     static async getGenerationById(generationId: number): Promise<Generation | null> {
-        const client = await pool.connect();
-        try {
-            const query = 'SELECT * FROM generations WHERE id = $1';
-            const result = await client.query(query, [generationId]);
-            return result.rows[0] || null;
-        } finally {
-            client.release();
-        }
+        const { data, error } = await supabase
+            .from('generations')
+            .select('*')
+            .eq('id', generationId)
+            .single();
+
+        if (error) return null;
+        return data as Generation;
     }
 
     // Get project generations
@@ -158,59 +143,61 @@ export class GenerationDatabase {
         projectId: number,
         limit: number = 50
     ): Promise<Generation[]> {
-        const client = await pool.connect();
-        try {
-            const query = `
-        SELECT * FROM generations 
-        WHERE project_id = $1
-        ORDER BY created_at DESC
-        LIMIT $2
-      `;
-            const result = await client.query(query, [projectId, limit]);
-            return result.rows;
-        } finally {
-            client.release();
+        const { data, error } = await supabase
+            .from('generations')
+            .select('*')
+            .eq('project_id', projectId)
+            .order('created_at', { ascending: false })
+            .limit(limit);
+
+        if (error) {
+            console.error('Error getting project generations:', error);
+            throw new Error(error.message);
         }
+        return data as Generation[];
     }
 
     // Get generation files
     static async getGenerationFiles(generationId: number): Promise<GenerationFile[]> {
-        const client = await pool.connect();
-        try {
-            const query = `
-        SELECT * FROM generation_files 
-        WHERE generation_id = $1
-        ORDER BY file_path ASC
-      `;
-            const result = await client.query(query, [generationId]);
-            return result.rows;
-        } finally {
-            client.release();
+        const { data, error } = await supabase
+            .from('generation_files')
+            .select('*')
+            .eq('generation_id', generationId)
+            .order('file_path', { ascending: true });
+
+        if (error) {
+            console.error('Error getting generation files:', error);
+            throw new Error(error.message);
         }
+        return data as GenerationFile[];
     }
 
     // Get all project files (from latest successful generation)
     static async getLatestProjectFiles(projectId: number): Promise<GenerationFile[]> {
-        const client = await pool.connect();
-        try {
-            const query = `
-        SELECT gf.* 
-        FROM generation_files gf
-        INNER JOIN generations g ON gf.generation_id = g.id
-        WHERE g.project_id = $1 AND g.status = 'complete'
-        ORDER BY g.created_at DESC, gf.file_path ASC
-        LIMIT 1000
-      `;
-            const result = await client.query(query, [projectId]);
+        // Find latest successful generation
+        const { data: generation, error: genError } = await supabase
+            .from('generations')
+            .select('id')
+            .eq('project_id', projectId)
+            .eq('status', 'complete')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
 
-            // Group by generation and return only the latest
-            const latestGeneration = result.rows[0]?.generation_id;
-            if (!latestGeneration) return [];
+        if (genError || !generation) return [];
 
-            return result.rows.filter(row => row.generation_id === latestGeneration);
-        } finally {
-            client.release();
+        // Get files for that generation
+        const { data: files, error: filesError } = await supabase
+            .from('generation_files')
+            .select('*')
+            .eq('generation_id', generation.id)
+            .order('file_path', { ascending: true });
+
+        if (filesError) {
+            console.error('Error getting latest project files:', filesError);
+            throw new Error(filesError.message);
         }
+        return files as GenerationFile[];
     }
 
     // Get generation statistics
@@ -220,28 +207,35 @@ export class GenerationDatabase {
         failed: number;
         avgThinkingTime: number;
     }> {
-        const client = await pool.connect();
-        try {
-            const query = `
-        SELECT 
-          COUNT(*) as total,
-          COUNT(CASE WHEN status = 'complete' THEN 1 END) as successful,
-          COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed,
-          AVG(thinking_duration) as avg_thinking
-        FROM generations
-        WHERE user_id = $1
-      `;
-            const result = await client.query(query, [userId]);
-            const row = result.rows[0];
+        // We'll run parallel queries for counts
+        const [totalResult, successfulResult, failedResult, thinkingResult] = await Promise.all([
+            supabase.from('generations').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+            supabase.from('generations').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'complete'),
+            supabase.from('generations').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'failed'),
+            // For avg thinking time, we'll fetch the last 100 successful generations and average them
+            supabase.from('generations')
+                .select('thinking_duration')
+                .eq('user_id', userId)
+                .not('thinking_duration', 'is', null)
+                .order('created_at', { ascending: false })
+                .limit(100)
+        ]);
 
-            return {
-                total: parseInt(row.total || 0),
-                successful: parseInt(row.successful || 0),
-                failed: parseInt(row.failed || 0),
-                avgThinkingTime: parseFloat(row.avg_thinking || 0)
-            };
-        } finally {
-            client.release();
+        const total = totalResult.count || 0;
+        const successful = successfulResult.count || 0;
+        const failed = failedResult.count || 0;
+
+        let avgThinkingTime = 0;
+        if (thinkingResult.data && thinkingResult.data.length > 0) {
+            const sum = thinkingResult.data.reduce((acc, curr) => acc + (curr.thinking_duration || 0), 0);
+            avgThinkingTime = sum / thinkingResult.data.length;
         }
+
+        return {
+            total,
+            successful,
+            failed,
+            avgThinkingTime
+        };
     }
 }
