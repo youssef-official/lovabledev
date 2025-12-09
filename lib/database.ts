@@ -1,13 +1,16 @@
 import { Pool } from 'pg';
 
-// Check if DATABASE_URL is available
-if (!process.env.DATABASE_URL) {
-  throw new Error('DATABASE_URL environment variable is not set');
-}
+  // Check if DATABASE_URL is available
+  if (!process.env.DATABASE_URL) {
+    throw new Error('DATABASE_URL environment variable is not set');
+  }
 
-// Create a connection pool for better performance
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  // Add statement_timeout to connection string for better error handling
+  const connectionString = process.env.DATABASE_URL + '?statement_timeout=30000';
+
+  // Create a connection pool for better performance
+  const pool = new Pool({
+    connectionString,
   ssl: {
     rejectUnauthorized: false
   },
@@ -15,9 +18,7 @@ const pool = new Pool({
   idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
   connectionTimeoutMillis: 10000, // Return an error after 10 seconds if connection could not be established
   // Enable detailed error logging for debugging connection issues
-  connection: {
-    options: '-c statement_timeout=30000'
-  }
+  // statement_timeout is set in the connection string
 });
 
 // User interface for TypeScript
