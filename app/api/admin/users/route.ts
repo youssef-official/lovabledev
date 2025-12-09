@@ -11,14 +11,7 @@ const ADMIN_EMAILS = [
 
 export async function GET(request: NextRequest) {
   try {
-    // Check if DATABASE_URL is configured
-    if (!process.env.DATABASE_URL) {
-      console.error('DATABASE_URL environment variable is not set');
-      return NextResponse.json(
-        { error: 'Database configuration missing' },
-        { status: 500 }
-      );
-    }
+
 
     // Check if user is authenticated
     const session = await getServerSession(authOptions);

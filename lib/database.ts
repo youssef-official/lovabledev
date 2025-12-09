@@ -1,25 +1,15 @@
-import { Pool } from 'pg';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-  // Check if DATABASE_URL is available
-  if (!process.env.DATABASE_URL) {
-    throw new Error('DATABASE_URL environment variable is not set');
-  }
+// Initialize Supabase Client
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 
-  // Add statement_timeout to connection string for better error handling
-  const connectionString = process.env.DATABASE_URL + '?statement_timeout=60000';
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('SUPABASE_URL and SUPABASE_ANON_KEY environment variables must be set');
+}
 
-  // Create a connection pool for better performance
-  const pool = new Pool({
-    connectionString,
-  ssl: {
-    rejectUnauthorized: false
-  },
-  max: 20, // Maximum number of clients in the pool
-  idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
-  connectionTimeoutMillis: 10000, // Return an error after 10 seconds if connection could not be established
-  // Enable detailed error logging for debugging connection issues
-  // statement_timeout is set in the connection string
-});
+// Supabase client instance
+const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey);
 
 // User interface for TypeScript
 export interface User {
@@ -43,33 +33,31 @@ export class UserDatabase {
     name?: string;
     image?: string;
   }): Promise<User> {
-    const client = await pool.connect();
-    try {
-      const query = `
-        INSERT INTO users (google_id, email, name, image, created_at, updated_at, last_login, login_count)
-        VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1)
-        ON CONFLICT (google_id) 
-        DO UPDATE SET 
-          email = EXCLUDED.email,
-          name = EXCLUDED.name,
-          image = EXCLUDED.image,
-          updated_at = CURRENT_TIMESTAMP,
-          last_login = CURRENT_TIMESTAMP,
-          login_count = users.login_count + 1
-        RETURNING *;
-      `;
+    // NOTE: Supabase upsert does not support increment directly, will rely on RLS/Triggers for proper increment
+    // We will fetch the existing user to get the current login_count
+    const existingUser = await this.getUserByGoogleId(userData.google_id);
+    const newLoginCount = existingUser ? existingUser.login_count + 1 : 1;
 
-      const result = await client.query(query, [
-        userData.google_id,
-        userData.email,
-        userData.name || null,
-        userData.image || null
-      ]);
+    const { data, error } = await supabase
+      .from('users')
+      .upsert({
+        google_id: userData.google_id,
+        email: userData.email,
+        name: userData.name,
+        image: userData.image,
+        updated_at: new Date().toISOString(),
+        last_login: new Date().toISOString(),
+        login_count: newLoginCount,
+      }, { onConflict: 'google_id' })
+      .select()
+      .single();
 
-      return result.rows[0];
-    } finally {
-      client.release();
+    if (error) {
+      console.error('Error upserting user:', error);
+      throw new Error(error.message);
     }
+
+    return data as User;
   }
 
   // Get all users for admin dashboard
@@ -77,52 +65,53 @@ export class UserDatabase {
     users: User[];
     total: number;
   }> {
-    const client = await pool.connect();
-    try {
-      // Get total count
-      const countQuery = 'SELECT COUNT(*) as total FROM users';
-      const countResult = await client.query(countQuery);
-      const total = parseInt(countResult.rows[0].total);
+    const { data: users, count, error } = await supabase
+      .from('users')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
 
-      // Get users with pagination
-      const usersQuery = `
-        SELECT * FROM users 
-        ORDER BY created_at DESC 
-        LIMIT $1 OFFSET $2
-      `;
-      const usersResult = await client.query(usersQuery, [limit, offset]);
-
-      return {
-        users: usersResult.rows,
-        total
-      };
-    } finally {
-      client.release();
+    if (error) {
+      console.error('Error getting all users:', error);
+      throw new Error(error.message);
     }
+
+    return {
+      users: users as User[],
+      total: count || 0,
+    };
   }
 
   // Get user by Google ID
   static async getUserByGoogleId(googleId: string): Promise<User | null> {
-    const client = await pool.connect();
-    try {
-      const query = 'SELECT * FROM users WHERE google_id = $1';
-      const result = await client.query(query, [googleId]);
-      return result.rows[0] || null;
-    } finally {
-      client.release();
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('google_id', googleId)
+      .single();
+
+    if (error && error.code !== 'PGRST116') { // PGRST116 is "No rows found"
+      console.error('Error getting user by Google ID:', error);
+      throw new Error(error.message);
     }
+
+    return data ? (data as User) : null;
   }
 
   // Get user by Email
   static async getUserByEmail(email: string): Promise<User | null> {
-    const client = await pool.connect();
-    try {
-      const query = 'SELECT * FROM users WHERE email = $1';
-      const result = await client.query(query, [email]);
-      return result.rows[0] || null;
-    } finally {
-      client.release();
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .single();
+
+    if (error && error.code !== 'PGRST116') { // PGRST116 is "No rows found"
+      console.error('Error getting user by Email:', error);
+      throw new Error(error.message);
     }
+
+    return data ? (data as User) : null;
   }
 
   // Get user statistics for admin dashboard
@@ -132,18 +121,31 @@ export class UserDatabase {
     newUsersThisWeek: number;
     newUsersThisMonth: number;
   }> {
-    const client = await pool.connect();
+    // NOTE: Supabase client does not easily support complex SQL functions like COUNT(CASE...)
+    // We will use the RPC feature for this, assuming the user has a function named 'get_user_stats'
+    // If this fails, we will fall back to simple count and warn the user.
     try {
-      const query = `
-        SELECT 
-          COUNT(*) as total_users,
-          COUNT(CASE WHEN created_at >= CURRENT_DATE THEN 1 END) as new_today,
-          COUNT(CASE WHEN created_at >= CURRENT_DATE - INTERVAL '7 days' THEN 1 END) as new_week,
-          COUNT(CASE WHEN created_at >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as new_month
-        FROM users
-      `;
-      const result = await client.query(query);
-      const row = result.rows[0];
+      const { data, error } = await supabase.rpc('get_user_stats');
+
+      if (error) {
+        console.warn('Could not use RPC get_user_stats. Falling back to simple count.', error);
+        // Fallback: simple total count
+        const { count: totalUsers, error: countError } = await supabase
+          .from('users')
+          .select('*', { count: 'exact', head: true });
+
+        if (countError) throw countError;
+
+        return {
+          totalUsers: totalUsers || 0,
+          newUsersToday: 0, // Cannot calculate without complex query/RPC
+          newUsersThisWeek: 0,
+          newUsersThisMonth: 0,
+        };
+      }
+
+      // Assuming RPC returns an object like { total_users, new_today, new_week, new_month }
+      const row = data[0];
 
       return {
         totalUsers: parseInt(row.total_users),
@@ -151,8 +153,9 @@ export class UserDatabase {
         newUsersThisWeek: parseInt(row.new_week),
         newUsersThisMonth: parseInt(row.new_month)
       };
-    } finally {
-      client.release();
+    } catch (error: any) {
+      console.error('Error getting user stats:', error);
+      throw new Error(error.message);
     }
   }
 
@@ -160,44 +163,32 @@ export class UserDatabase {
   static async testConnection(): Promise<boolean> {
     try {
       console.log('Testing database connection...');
-      console.log('DATABASE_URL configured:', !!process.env.DATABASE_URL);
       
-      if (!process.env.DATABASE_URL) {
-        console.error('DATABASE_URL environment variable is not set');
+      if (!supabaseUrl || !supabaseAnonKey) {
+        console.error('SUPABASE_URL or SUPABASE_ANON_KEY environment variable is not set');
         return false;
       }
 
-      const client = await pool.connect();
-      console.log('Connected to database successfully');
-      await client.query('SELECT 1');
-      console.log('Database query executed successfully');
-      client.release();
+      // Simple select to test connection
+      const { error } = await supabase.from('users').select('id', { head: true, count: 'exact' });
+
+      if (error) {
+        console.error('Database connection test failed:', error);
+        return false;
+      }
+
       console.log('Database connection test successful');
       return true;
     } catch (error: any) {
-      console.error('Database connection test failed:', error);
-      console.error('Error message:', error.message);
-      console.error('Error code:', error.code);
-      console.error('Error stack:', error.stack);
-      console.error('DATABASE_URL exists:', !!process.env.DATABASE_URL);
-      console.error('DATABASE_URL (masked):', process.env.DATABASE_URL ? 'postgres://...@supabase.co' : 'undefined');
+      console.error('Database connection test failed (exception):', error);
       return false;
     }
   }
 }
 
-// Export the pool for direct queries if needed
-export { pool };
+// Export the supabase client for direct queries if needed
+export { supabase };
 
 // Export database classes
 export { ProjectDatabase } from './db/projects';
 export { GenerationDatabase } from './db/generations';
-
-// Graceful shutdown
-process.on('SIGINT', () => {
-  pool.end();
-});
-
-process.on('SIGTERM', () => {
-  pool.end();
-});
