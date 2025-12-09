@@ -7,7 +7,8 @@ DROP TABLE IF EXISTS generations CASCADE;
 DROP TABLE IF EXISTS projects CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 
--- Users table (already exists but recreating for completeness)
+-- Users table
+-- Stores user authentication and profile information
 CREATE TABLE users (
   id SERIAL PRIMARY KEY,
   google_id VARCHAR(255) UNIQUE NOT NULL,
@@ -21,24 +22,26 @@ CREATE TABLE users (
 );
 
 -- Projects table
+-- Stores project metadata and current state
 CREATE TABLE projects (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   name VARCHAR(255) NOT NULL,
   description TEXT,
   prompt TEXT NOT NULL,
-  code TEXT,
-  model VARCHAR(100),
+  code TEXT, -- Current main code or entry point
+  model VARCHAR(100), -- Model used for the project
   status VARCHAR(50) DEFAULT 'active', -- active, archived, deleted
   sandbox_id VARCHAR(255), -- E2B sandbox ID
   sandbox_url TEXT, -- E2B sandbox URL
-  preview_image TEXT, -- Screenshot or preview image
+  preview_image TEXT, -- Screenshot or preview image url
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   last_viewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Generations table (code generation history)
+-- Generations table
+-- Stores history of AI code generations for each project
 CREATE TABLE generations (
   id SERIAL PRIMARY KEY,
   project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -55,6 +58,7 @@ CREATE TABLE generations (
 );
 
 -- Generated files table
+-- Stores individual files created during a generation
 CREATE TABLE generation_files (
   id SERIAL PRIMARY KEY,
   generation_id INTEGER NOT NULL REFERENCES generations(id) ON DELETE CASCADE,
@@ -65,9 +69,12 @@ CREATE TABLE generation_files (
 );
 
 -- Create indexes for better performance
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_google_id ON users(google_id);
 CREATE INDEX idx_projects_user_id ON projects(user_id);
 CREATE INDEX idx_projects_created_at ON projects(created_at DESC);
 CREATE INDEX idx_projects_status ON projects(status);
+CREATE INDEX idx_projects_updated_at ON projects(updated_at DESC);
 CREATE INDEX idx_generations_project_id ON generations(project_id);
 CREATE INDEX idx_generations_status ON generations(status);
 CREATE INDEX idx_generation_files_generation_id ON generation_files(generation_id);
@@ -88,12 +95,29 @@ FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_projects_updated_at BEFORE UPDATE ON projects
 FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- Sample data (optional - remove in production)
--- This adds some example projects for testing
-INSERT INTO projects (user_id, name, description, prompt, status) VALUES
-(1, 'pharaoh-health-chat', 'Health chat application', 'Create a health chat application with AI assistant', 'active'),
-(1, 'ecommerce-dashboard', 'Admin dashboard for e-commerce', 'Build an admin dashboard for managing e-commerce products', 'active'),
-(1, 'portfolio-website', 'Personal portfolio site', 'Create a modern portfolio website with animations', 'active');
+-- Sample data for testing and development
+
+-- 1. Insert a sample user
+INSERT INTO users (google_id, email, name, image) VALUES
+('google_123456789', 'test@example.com', 'Test User', 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix');
+
+-- 2. Insert sample projects
+INSERT INTO projects (user_id, name, description, prompt, code, model, status) VALUES
+(1, 'Health Chat App', 'A healthcare chat application with AI assistant', 'Create a health chat application with AI assistant that can help diagnose simple symptoms.', '', 'minimax', 'active'),
+(1, 'E-commerce Admin', 'Admin dashboard for managing products', 'Build an admin dashboard for managing e-commerce products with charts and tables.', '', 'minimax', 'active'),
+(1, 'Personal Portfolio', 'Modern portfolio website with animations', 'Create a modern portfolio website with scroll animations and a dark theme.', '', 'minimax', 'active'),
+(1, 'Task Manager', 'Kanban style task management app', 'I need a kanban board to manage my daily tasks.', '', 'openrouter', 'archived');
+
+-- 3. Insert sample generations
+INSERT INTO generations (project_id, user_id, prompt, model, status, thinking_duration, generation_start_time, generation_end_time) VALUES
+(1, 1, 'Initial creation', 'minimax', 'complete', 1500, NOW() - INTERVAL '1 hour', NOW() - INTERVAL '59 minutes'),
+(1, 1, 'Add dark mode', 'minimax', 'complete', 1200, NOW() - INTERVAL '30 minutes', NOW() - INTERVAL '29 minutes');
+
+-- 4. Insert sample files
+INSERT INTO generation_files (generation_id, file_path, file_content, file_type) VALUES
+(1, 'src/App.tsx', 'export default function App() { return <div>Hello World</div> }', 'typescript'),
+(1, 'src/index.css', 'body { background: white; }', 'css'),
+(2, 'src/App.tsx', 'export default function App() { return <div className="dark">Dark Mode</div> }', 'typescript');
 
 -- Verification queries
 SELECT 'Users table:' as info, COUNT(*) as count FROM users;
