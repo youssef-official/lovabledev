@@ -227,3 +227,61 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 **Made with ❤️ by the Open Source Community**
 
 ⭐ **Star this repo** if you find it useful!
+
+## Troubleshooting
+
+### Issue: "getaddrinfo ENOTFOUND db.cqrdffcvmoxwzjrsymvm.supabase.co"
+
+**Problem**: The database connection string is incorrect or the database is not accessible.
+
+**Solution**:
+
+1. **Check Supabase Database Status**
+   - Go to [Supabase Dashboard](https://supabase.com/dashboard)
+   - Select your project
+   - Check if the database is **Active** (not Stopped)
+   - If stopped, click **Start** to activate it
+
+2. **Verify Database Connection String**
+   - Go to **Settings > Database > Connection String**
+   - Copy the correct connection string
+   - Update `DATABASE_URL` in your `.env` file
+   - The format should be:
+     ```
+     postgresql://postgres:YOUR_PASSWORD@db.[your-project-id].supabase.co:5432/postgres
+     ```
+
+3. **Check Database Password**
+   - Go to **Settings > Database > Database Password**
+   - Verify or reset your password
+   - Update the password in `DATABASE_URL`
+
+4. **Verify Network Settings**
+   - Go to **Settings > Database > Connection Pooling**
+   - Ensure connection pooling is enabled
+   - Check firewall rules if you have any
+
+5. **Test Connection Locally**
+   - Update `.env` with correct credentials
+   - Run the app locally: `pnpm dev`
+   - Check browser console for any errors
+
+6. **Re-deploy to Vercel**
+   - After fixing `.env`, commit and push changes
+   - Redeploy to Vercel
+   - Update environment variables in Vercel dashboard
+
+### Issue: "DATABASE_URL environment variable is not set"
+
+**Solution**:
+- Make sure `.env` file exists in the root directory
+- Check that the file is not gitignored (it shouldn't be)
+- Verify the file has the correct format
+- Restart your development server after making changes
+
+### Issue: Google OAuth not working
+
+**Solution**:
+- Verify `NEXTAUTH_URL` is set correctly
+- Check that authorized redirect URI is set in Google Cloud Console
+- Ensure `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are correct

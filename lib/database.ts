@@ -13,7 +13,11 @@ const pool = new Pool({
   },
   max: 20, // Maximum number of clients in the pool
   idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
-  connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection could not be established
+  connectionTimeoutMillis: 10000, // Return an error after 10 seconds if connection could not be established
+  // Enable detailed error logging for debugging connection issues
+  connection: {
+    options: '-c statement_timeout=30000'
+  }
 });
 
 // User interface for TypeScript
@@ -154,19 +158,28 @@ export class UserDatabase {
   // Test database connection
   static async testConnection(): Promise<boolean> {
     try {
+      console.log('Testing database connection...');
+      console.log('DATABASE_URL configured:', !!process.env.DATABASE_URL);
+      
       if (!process.env.DATABASE_URL) {
         console.error('DATABASE_URL environment variable is not set');
         return false;
       }
 
       const client = await pool.connect();
+      console.log('Connected to database successfully');
       await client.query('SELECT 1');
+      console.log('Database query executed successfully');
       client.release();
       console.log('Database connection test successful');
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Database connection test failed:', error);
+      console.error('Error message:', error.message);
+      console.error('Error code:', error.code);
+      console.error('Error stack:', error.stack);
       console.error('DATABASE_URL exists:', !!process.env.DATABASE_URL);
+      console.error('DATABASE_URL (masked):', process.env.DATABASE_URL ? 'postgres://...@supabase.co' : 'undefined');
       return false;
     }
   }
