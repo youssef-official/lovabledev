@@ -85,13 +85,17 @@ function HomePage() {
         })
       });
 
-      if (!res.ok) throw new Error('Failed to create project');
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.details || errorData.error || 'Failed to create project');
+      }
 
       const project = await res.json();
       router.push(`/project/${project.id}`);
     } catch (error) {
       console.error('Error creating project:', error);
-      alert('Failed to create project. Please try again.');
+      const message = error instanceof Error ? error.message : 'Failed to create project. Please try again.';
+      alert(message);
       setSubmitting(false);
       setLoading(false);
     }
