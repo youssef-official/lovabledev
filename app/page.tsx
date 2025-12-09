@@ -80,6 +80,7 @@ function HomePage() {
           name: `Generated from: "${promptInput.substring(0, 30)}..."`,
           description: promptInput,
           prompt: promptInput,
+          code: '',
           model: selectedModel // Pass the selected model
         })
       });
@@ -159,11 +160,11 @@ function HomePage() {
               <ArrowRight className="w-3.5 h-3.5 text-white/50" />
             </div>
 
-            <h1 className="text-5xl sm:text-6xl md:text-7xl font-bold text-white mb-4 tracking-tight">
+            <h1 className="text-5xl sm:text-6xl md:text-7xl font-bold text-white mb-8 tracking-tight">
               Build something <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-pink-500">🧡</span> Lovable
             </h1>
 
-            <p className="text-xl text-white/60 mb-12 font-medium">
+            <p className="text-xl text-white/60 mb-16 font-medium">
               Create apps and websites by chatting with AI
             </p>
           </motion.div>

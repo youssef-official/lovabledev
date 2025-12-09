@@ -62,7 +62,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { name, description, prompt } = body;
+    const { name, description, prompt, code, model } = body;
 
     if (!prompt) {
       return NextResponse.json(
@@ -78,7 +78,9 @@ export async function POST(request: Request) {
       userId: user.id,
       name: projectName,
       description,
-      prompt
+      prompt,
+      code,
+      model
     });
 
     return NextResponse.json(project, { status: 201 });

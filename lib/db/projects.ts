@@ -6,6 +6,8 @@ export interface Project {
     name: string;
     description: string | null;
     prompt: string;
+    code: string;
+    model: string;
     status: string;
     sandbox_id: string | null;
     sandbox_url: string | null;
@@ -22,12 +24,14 @@ export class ProjectDatabase {
         name: string;
         description?: string;
         prompt: string;
+        code: string;
+        model: string;
     }): Promise<Project> {
         const client = await pool.connect();
         try {
             const query = `
-        INSERT INTO projects (user_id, name, description, prompt, status, created_at, updated_at, last_viewed_at)
-        VALUES ($1, $2, $3, $4, 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        INSERT INTO projects (user_id, name, description, prompt, code, model, status, created_at, updated_at, last_viewed_at)
+        VALUES ($1, $2, $3, $4, $5, $6, 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         RETURNING *;
       `;
 
@@ -35,7 +39,9 @@ export class ProjectDatabase {
                 data.userId,
                 data.name,
                 data.description === undefined ? null : data.description,
-                data.prompt
+                data.prompt,
+                data.code,
+                data.model
             ]);
 
             return result.rows[0];
